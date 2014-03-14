@@ -1,0 +1,14 @@
+<resources>
+
+    <string name="ap_app_name">AnyPresenceLibrary</string>
+
+    <string name="ap_option_ok">Okay</string>
+    <string name="ap_option_clear">Clear</string>
+    <string name="ap_edit_msg_failed">Saving Failed</string>
+    <string name="ap_menu_delete">Delete</string>
+    <string name="ap_menu_save">Save</string>
+    <string name="ap_msg_loading">Loading…</string>
+    <string name="ap_loading_failed">Couldn\'t reach server</string>
+    <string name="ap_no_data">No Data</string>
+
+</resources>
