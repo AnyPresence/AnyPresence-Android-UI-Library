@@ -52,12 +52,12 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
                 bitmap = BitmapFactory.decodeStream(bis);
                 bis.close();
                 is.close();
+
+                cacheBitmap(mImageView.getContext(), bitmap, url);
             }
             catch(IOException e) {
                 Log.e(AnyPresenceActivity.TAG, "Error getting bitmap from url " + url, e);
             }
-
-            cacheBitmap(mImageView.getContext(), bitmap, url);
         }
 
         return bitmap;
@@ -82,7 +82,7 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
         if(url != null && !"".equals(url)) {
 
             Log.d(AnyPresenceActivity.TAG, "Saving bitmap to memory.");
-            LOADED_BITMAPS.put(url, bitmap);
+            if(bitmap != null) LOADED_BITMAPS.put(url, bitmap);
 
             File cache = getCacheFile(context, url);
             Log.d(AnyPresenceActivity.TAG, "Got cache file at " + cache);
@@ -102,6 +102,9 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
                     e.printStackTrace();
                 }
                 catch(IOException e) {
+                    e.printStackTrace();
+                }
+                catch(NullPointerException e) {
                     e.printStackTrace();
                 }
             }
@@ -176,6 +179,6 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
     protected void onPostExecute(Bitmap result) {
         super.onPostExecute(result);
 
-        mImageView.setImageBitmap(result);
+        if(result != null) mImageView.setImageBitmap(result);
     }
 }

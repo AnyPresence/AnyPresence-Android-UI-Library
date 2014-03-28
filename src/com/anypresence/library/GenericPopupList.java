@@ -78,8 +78,10 @@ public abstract class GenericPopupList<T extends Serializable> extends TextView 
     private PopupMenu constructPopupMenu(View view, List<T> values, OnMenuItemClickListener listener) {
         final PopupMenu popupMenu = new PopupMenu(getContext(), view);
         final Menu menu = popupMenu.getMenu();
-        for(T t : values) {
-            menu.add(getItemLabel(t));
+        if(values != null) {
+            for(T t : values) {
+                menu.add(getItemLabel(t));
+            }
         }
         popupMenu.setOnMenuItemClickListener(listener);
         return popupMenu;
@@ -87,7 +89,6 @@ public abstract class GenericPopupList<T extends Serializable> extends TextView 
 
     public void setPrompt(String prompt) {
         mPrompt = prompt;
-        System.out.println("Prompt set!");
         if(mItem == null) setText(mPrompt);
     }
 
@@ -157,7 +158,7 @@ public abstract class GenericPopupList<T extends Serializable> extends TextView 
 
         if(mPrompt == null) {
             // Choose the first item
-            setItem(mItems.get(0));
+            if(mItems.size() > 0) setItem(mItems.get(0));
         }
         else {
             setItem(null);

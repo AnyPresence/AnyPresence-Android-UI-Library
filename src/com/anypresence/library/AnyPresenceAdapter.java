@@ -1,6 +1,7 @@
 package com.anypresence.library;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -18,10 +19,18 @@ import android.widget.ImageView;
 public abstract class AnyPresenceAdapter<T extends Serializable> extends ArrayAdapter<T> {
     private final Map<View, BitmapTask> mAsyncTasks = new WeakHashMap<View, BitmapTask>();
     private final List<T> mList;
+    private final ArrayList<T> mHiddenItems;
 
     public AnyPresenceAdapter(Context context, List<T> objects) {
         super(context, 0, objects);
         mList = objects;
+
+        mHiddenItems = new ArrayList<T>();
+        for(T object : mList) {
+            if(isObjectHidden(object)) {
+                mHiddenItems.add(object);
+            }
+        }
     }
 
     /**
@@ -77,7 +86,6 @@ public abstract class AnyPresenceAdapter<T extends Serializable> extends ArrayAd
         if(previousTask != null) {
             previousTask.cancel(true);
         }
-        iv.setImageDrawable(null);
         BitmapTask newTask = new BitmapTask(iv, url);
         newTask.executeAsync();
         mAsyncTasks.put(convertView, newTask);
@@ -112,4 +120,38 @@ public abstract class AnyPresenceAdapter<T extends Serializable> extends ArrayAd
      * to convertView.
      * */
     public void updateDropdownView(View convertView, T object) {}
+
+    @Override
+    public void notifyDataSetChanged() {
+        mHiddenItems.clear();
+        for(T object : mList) {
+            if(isObjectHidden(object)) {
+                mHiddenItems.add(object);
+            }
+        }
+
+        super.notifyDataSetChanged();
+    }
+
+    @Override
+    public int getCount() {
+        return mList.size() - mHiddenItems.size();
+    }
+
+    @Override
+    public T getItem(int position) {
+        for(int i = 0, offset = 0; i < mList.size(); i++) {
+            if(isObjectHidden(mList.get(i))) {
+                offset++;
+            }
+            else if(i == position + offset) {
+                return mList.get(i);
+            }
+        }
+        return super.getItem(position);
+    }
+
+    public boolean isObjectHidden(T object) {
+        return false;
+    }
 }

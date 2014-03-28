@@ -18,10 +18,11 @@ import com.anypresence.sdk.callbacks.APCallback;
  * params) to load data.
  * */
 public abstract class AnyPresencePopupList<T extends RemoteObject> extends GenericPopupList<T> {
-    private String mQueryScope;
+    private String mQueryScope = "all";
     private Map<String, String> mQueryParams;
     private String mLabel;
     private OnLoadListener<T> mOnLoadListener;
+    private List<T> mPermenantItems;
 
     public AnyPresencePopupList(Context context) {
         super(context);
@@ -66,10 +67,17 @@ public abstract class AnyPresencePopupList<T extends RemoteObject> extends Gener
     }
 
     /**
+     * Items that will show up regardless of query scope
+     * */
+    protected void setPermanentItems(List<T> items) {
+        mPermenantItems = items;
+    }
+
+    /**
      * Loads items from query scope and params.
      * */
     @SuppressWarnings("unchecked")
-    private void loadItems() {
+    protected void loadItems() {
         try {
             APCallback<List<T>> callback = new APCallback<List<T>>() {
                 @Override
@@ -79,22 +87,26 @@ public abstract class AnyPresencePopupList<T extends RemoteObject> extends Gener
                         return;
                     }
 
+                    if(mPermenantItems != null) {
+                        arg0.addAll(0, mPermenantItems);
+                    }
+
                     setItems(arg0);
                     if(mOnLoadListener != null) mOnLoadListener.onLoad(arg0);
                 }
             };
             Method cacheMethod = getClazz().getMethod("fetchInCacheWithParameterPredicate", String.class, Map.class);
-            Object list = cacheMethod.invoke(null, mQueryScope == null ? "all" : mQueryScope, mQueryParams);
+            Object list = cacheMethod.invoke(null, mQueryScope, mQueryParams);
             if(list != null && ((List<T>) list).size() != 0) {
                 callback.onSuccess((List<T>) list);
             }
             if(mQueryParams == null) {
                 Method m = getClazz().getMethod("queryInBackground", String.class, IAPFutureCallback.class);
-                m.invoke(null, mQueryScope == null ? "all" : mQueryScope, callback);
+                m.invoke(null, mQueryScope, callback);
             }
             else {
-                Method m = getClazz().getMethod("queryInBackground", String.class, Map.class, Integer.class, Integer.class, IAPFutureCallback.class);
-                m.invoke(null, mQueryScope == null ? "all" : mQueryScope, mQueryParams, null, null, callback);
+                Method m = getClazz().getMethod("queryInBackground", String.class, Map.class, IAPFutureCallback.class);
+                m.invoke(null, mQueryScope, mQueryParams, callback);
             }
         }
         catch(NoSuchMethodException e) {
@@ -126,8 +138,8 @@ public abstract class AnyPresencePopupList<T extends RemoteObject> extends Gener
      * Set the query scope. Immediately loads items.
      * */
     public void setQueryScope(String queryScope, Map<String, String> params) {
-        this.mQueryScope = queryScope;
-        this.mQueryParams = params;
+        mQueryScope = queryScope;
+        mQueryParams = params;
         loadItems();
     }
 
@@ -135,7 +147,31 @@ public abstract class AnyPresencePopupList<T extends RemoteObject> extends Gener
      * Set the field used for labels.
      * */
     protected void setLabel(String label) {
-        this.mLabel = label;
+        mLabel = label;
+    }
+
+    private String parseLabel(String label) {
+        StringBuilder sb = new StringBuilder("get");
+
+        boolean capitalize = true;
+        for(int i = 0; i < label.length(); i++) {
+            char c = label.charAt(i);
+
+            // Capitalize after underscores
+            if(c == '_') {
+                capitalize = true;
+                continue;
+            }
+
+            // Apply capitalization as needed
+            if(capitalize) c = Character.toUpperCase(c);
+            capitalize = false;
+
+            // Add to string
+            sb.append(c);
+        }
+
+        return sb.toString();
     }
 
     /**
@@ -155,14 +191,14 @@ public abstract class AnyPresencePopupList<T extends RemoteObject> extends Gener
      * Set an OnLoadListener
      * */
     public void setOnLoadListener(OnLoadListener<T> onLoadListener) {
-        this.mOnLoadListener = onLoadListener;
+        mOnLoadListener = onLoadListener;
     }
 
     @Override
     protected String getItemLabel(T item) {
         if(item == null) return "";
         try {
-            Method m = item.getClass().getMethod("get" + Character.toUpperCase(mLabel.charAt(0)) + mLabel.substring(1));
+            Method m = item.getClass().getMethod(parseLabel(mLabel));
             Object o = m.invoke(item);
             if(o == null) o = "";
             return o.toString();
