@@ -156,9 +156,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
         try {
             super.setListShown(shown);
         }
-        catch(IllegalStateException e) {
-            e.printStackTrace();
-        }
+        catch(IllegalStateException e) {}
     }
 
     /**
@@ -179,7 +177,14 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
      * Set the query scope. Immediately loads items.
      * */
     public void setQueryScope(String queryScope, Map<String, String> params) {
-        mQuery = new Query(queryScope, params);
+        setQueryScope(queryScope, params, null, null);
+    }
+
+    /**
+     * Set the query scope. Immediately loads items.
+     * */
+    public void setQueryScope(String queryScope, Map<String, String> params, Integer limit, Integer offset) {
+        mQuery = new Query(queryScope, params, limit, offset);
         if(mAdapter != null) mAdapter.updateAdapter(new ArrayList<T>());
         try {
             getListView().setEmptyView(null);
@@ -188,9 +193,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
                 parent.removeView(mNoResultsText);
             }
         }
-        catch(IllegalStateException e) {
-            e.printStackTrace();
-        }
+        catch(IllegalStateException e) {}
         notifyDataChanged();
     }
 
@@ -202,12 +205,20 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
         mDoesCacheExist = false;
         if(mQuery != null && mQuery.getScope() != null) {
             try {
-                Method cacheMethod = getClazz().getMethod("fetchInCacheWithParameterPredicate", String.class, Map.class);
-                Object list = cacheMethod.invoke(null, mQuery.getScope(), mQuery.getParams());
+                Object list;
+                if(mQuery.getLimit() != null || mQuery.getOffset() != null) {
+                    // Query cache w/ limit and offset
+                    Method cacheMethod = getClazz().getMethod("fetchInCacheWithLatestAPCachedRequestPredicate", String.class, Map.class, Integer.class, Integer.class);
+                    list = cacheMethod.invoke(null, mQuery.getScope(), mQuery.getParams(), mQuery.getOffset(), mQuery.getLimit());
+                }
+                else {
+                    // Query cache w/o limit and offset
+                    Method cacheMethod = getClazz().getMethod("fetchInCacheWithParameterPredicate", String.class, Map.class);
+                    list = cacheMethod.invoke(null, mQuery.getScope(), mQuery.getParams());
+                }
                 if(list != null && ((List<T>) list).size() != 0) {
                     mDoesCacheExist = true;
                     callback.onSuccess((List<T>) list);
-                    System.out.println("Cache List size: " + ((List<T>) list).size());
                 }
                 else {
                     setListShown(false);
@@ -232,12 +243,28 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
         if(mQuery != null && mQuery.getScope() != null) {
             try {
                 if(mQuery.getParams() == null) {
-                    Method m = getClazz().getMethod("queryInBackground", String.class, IAPFutureCallback.class);
-                    m.invoke(null, mQuery.getScope(), callback);
+                    if(mQuery.getLimit() != null || mQuery.getOffset() != null) {
+                        // Query cache w/ limit and offset
+                        Method m = getClazz().getMethod("queryInBackground", String.class, Integer.class, Integer.class, IAPFutureCallback.class);
+                        m.invoke(null, mQuery.getScope(), mQuery.getOffset(), mQuery.getLimit(), callback);
+                    }
+                    else {
+                        // Query cache w/o limit and offset
+                        Method m = getClazz().getMethod("queryInBackground", String.class, IAPFutureCallback.class);
+                        m.invoke(null, mQuery.getScope(), callback);
+                    }
                 }
                 else {
-                    Method m = getClazz().getMethod("queryInBackground", String.class, Map.class, Integer.class, Integer.class, IAPFutureCallback.class);
-                    m.invoke(null, mQuery.getScope(), mQuery.getParams(), null, null, callback);
+                    if(mQuery.getLimit() != null || mQuery.getOffset() != null) {
+                        // Query cache w/ limit and offset
+                        Method m = getClazz().getMethod("queryInBackground", String.class, Map.class, Integer.class, Integer.class, IAPFutureCallback.class);
+                        m.invoke(null, mQuery.getScope(), mQuery.getParams(), mQuery.getOffset(), mQuery.getLimit(), callback);
+                    }
+                    else {
+                        // Query cache w/o limit and offset
+                        Method m = getClazz().getMethod("queryInBackground", String.class, Map.class, IAPFutureCallback.class);
+                        m.invoke(null, mQuery.getScope(), mQuery.getParams(), callback);
+                    }
                 }
             }
             catch(NoSuchMethodException e) {
@@ -341,15 +368,28 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
     private static class Query {
         private final String mScope;
         private final Map<String, String> mParams;
+        private final Integer mLimit;
+        private final Integer mOffset;
 
         public Query(String scope) {
             mScope = scope;
             mParams = null;
+            mLimit = null;
+            mOffset = null;
         }
 
         public Query(String scope, Map<String, String> params) {
             mScope = scope;
             mParams = params;
+            mLimit = null;
+            mOffset = null;
+        }
+
+        public Query(String scope, Map<String, String> params, Integer limit, Integer offset) {
+            mScope = scope;
+            mParams = params;
+            mLimit = limit;
+            mOffset = offset;
         }
 
         public String getScope() {
@@ -359,5 +399,9 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
         public Map<String, String> getParams() {
             return mParams;
         }
+
+        public Integer getLimit() { return mLimit; }
+
+        public Integer getOffset() { return mOffset; }
     }
 }
