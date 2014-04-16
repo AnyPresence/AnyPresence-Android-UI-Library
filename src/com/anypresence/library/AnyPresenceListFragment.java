@@ -5,13 +5,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.ListFragment;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -30,6 +31,7 @@ import com.anypresence.rails_droid.RemoteObject;
  * A class that abstracts away loading data into a list fragment.
  * */
 public abstract class AnyPresenceListFragment<T extends RemoteObject> extends ListFragment {
+    private Context mContext;
     private AnyPresenceAdapter<T> mAdapter;
     private Comparator<T> mComparator;
     private Filter<T> mFilter;
@@ -37,28 +39,32 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
     private boolean mIsActivityCreated = false;
     private boolean mDoesCacheExist;
     private OnLoadListener<T> mOnLoadListener;
+    private OnItemSelectedListener<T> mOnItemSelectedListener;
     private Query mQuery = new Query("all");
     private TextView mNoResultsText;
+
+    public AnyPresenceListFragment() {
+        super();
+        try {
+            // Fragments inside fragments can't do this
+            setRetainInstance(true);
+        }
+        catch(IllegalStateException e) {}
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+
+        mContext = activity;
+    }
 
     /**
      * Returns a base context. This context will die when the activity dies, so
      * don't hold on to it.
      * */
     protected Context getContext() {
-        return getActivity();
-    }
-
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View rootView = super.onCreateView(inflater, container, savedInstanceState);
-        try {
-            // Fragments inside fragments can't do this
-            setRetainInstance(true);
-        }
-        catch(IllegalStateException e) {
-            e.printStackTrace();
-        }
-        return rootView;
+        return mContext;
     }
 
     @Override
@@ -131,9 +137,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
                         getListView().setEmptyView(mNoResultsText);
                     }
                 }
-                catch(IllegalStateException e) {
-                    e.printStackTrace();
-                }
+                catch(IllegalStateException e) {}
 
                 if(mOnLoadListener != null) mOnLoadListener.onLoad(getList());
             }
@@ -171,7 +175,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
      * Set the query scope. Immediately loads items.
      * */
     public void setQueryScope(String queryScope) {
-        setQueryScope(queryScope, new HashMap<String, String>());
+        setQueryScope(queryScope, null);
     }
 
     /**
@@ -185,14 +189,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
      * Set the query scope. Immediately loads items.
      * */
     public void setQueryScope(String queryScope, Map<String, String> params, Integer limit, Integer offset) {
-        setQueryScope(new Query(queryScope, params, limit, offset));
-    }
-
-    /**
-     * Set the query scope. Immediately loads items.
-     * */
-    public void setQueryScope(Query query) {
-        mQuery = query;
+        mQuery = new Query(queryScope, params, limit, offset);
         if(mAdapter != null) mAdapter.updateAdapter(new ArrayList<T>());
         try {
             getListView().setEmptyView(null);
@@ -216,8 +213,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
                 Object list;
                 if(mQuery.getLimit() != null || mQuery.getOffset() != null) {
                     // Query cache w/ limit and offset
-                    Method cacheMethod = getClazz().getMethod("fetchInCacheWithLatestAPCachedRequestPredicate", String.class, Map.class, Integer.class,
-                            Integer.class);
+                    Method cacheMethod = getClazz().getMethod("fetchInCacheWithLatestAPCachedRequestPredicate", String.class, Map.class, Integer.class, Integer.class);
                     list = cacheMethod.invoke(null, mQuery.getScope(), mQuery.getParams(), mQuery.getOffset(), mQuery.getLimit());
                 }
                 else {
@@ -229,6 +225,9 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
                     mDoesCacheExist = true;
                     callback.onSuccess((List<T>) list);
                 }
+                else {
+                    setListShown(false);
+                }
             }
             catch(NoSuchMethodException e) {
                 e.printStackTrace();
@@ -238,10 +237,6 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
             }
             catch(InvocationTargetException e) {
                 e.printStackTrace();
-            }
-
-            if(!mDoesCacheExist) {
-                setListShown(false);
             }
         }
     }
@@ -308,7 +303,9 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
     /**
      * The item has been selected.
      * */
-    protected void onItemSelected(T item) {}
+    protected void onItemSelected(T item) {
+        if(mOnItemSelectedListener != null) mOnItemSelectedListener.onItemSelected(item);
+    }
 
     /**
      * Call to sort the data.
@@ -326,7 +323,10 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
      * */
     public void setFilter(Filter<T> filter) {
         mFilter = filter;
-        if(mFilter != null) mAdapter.updateAdapter(applyFilter(mUnfilteredData));
+        if(mAdapter != null) {
+            if (mFilter != null) mAdapter.updateAdapter(applyFilter(mUnfilteredData));
+            else mAdapter.updateAdapter(mUnfilteredData);
+        }
     }
 
     private List<T> applyFilter(List<T> items) {
@@ -354,6 +354,20 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
     }
 
     /**
+     * Get the active OnItemSelectedListener
+     * */
+    public OnItemSelectedListener<T> getOnItemSelectedListener() {
+        return mOnItemSelectedListener;
+    }
+
+    /**
+     * Set an OnItemSelectedListener
+     * */
+    public void setOnItemSelectedListener(OnItemSelectedListener<T> onItemSelectedListener) {
+        this.mOnItemSelectedListener = onItemSelectedListener;
+    }
+
+    /**
      * Create an adapter for the UI of the ListView.
      * */
     protected abstract AnyPresenceAdapter<T> createAdapter(List<T> items);
@@ -375,7 +389,14 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
         public void onLoad(List<T> items);
     }
 
-    public static final class Query {
+    /**
+     * A listener for when an item is clicked.
+     * */
+    public static interface OnItemSelectedListener<T> {
+        public void onItemSelected(T item);
+    }
+
+    private static class Query {
         private final String mScope;
         private final Map<String, String> mParams;
         private final Integer mLimit;
@@ -410,12 +431,8 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
             return mParams;
         }
 
-        public Integer getLimit() {
-            return mLimit;
-        }
+        public Integer getLimit() { return mLimit; }
 
-        public Integer getOffset() {
-            return mOffset;
-        }
+        public Integer getOffset() { return mOffset; }
     }
 }

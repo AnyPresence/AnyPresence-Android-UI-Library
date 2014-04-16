@@ -51,19 +51,19 @@ public class Auth {
                 public void finished(String result, Throwable ex) {
                     if(ex != null) {
                         ex.printStackTrace();
-                        listener.onLoginFailed();
+                        if(listener != null) listener.onLoginFailed();
                         return;
                     }
 
                     IAuthManager manager = AuthManagerFactory.getInstance();
                     IAuthenticatable user = manager.getAuthenticatableObject();
-                    listener.onLoginSuccess(user);
+                    if(listener != null) listener.onLoginSuccess(user);
                 }
             });
         }
         catch(RemoteRequestException e) {
             e.printStackTrace();
-            listener.onLoginFailed();
+            if(listener != null) listener.onLoginFailed();
         }
     }
 
@@ -72,6 +72,11 @@ public class Auth {
      * */
     public static boolean isLoggedIn() {
         return AuthManagerFactory.getInstance().getIsAuthenticated();
+    }
+
+    public static IAuthenticatable getCurrentUser() {
+        IAuthManager manager = AuthManagerFactory.getInstance();
+        return manager.getAuthenticatableObject();
     }
 
     public static interface OnLoginListener {

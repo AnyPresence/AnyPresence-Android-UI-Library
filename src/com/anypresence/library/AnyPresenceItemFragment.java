@@ -8,7 +8,7 @@ import android.os.Bundle;
  * */
 public abstract class AnyPresenceItemFragment<T> extends AnyPresenceFragment {
     public static final String EXTRA_ITEM = "item";
-    protected T mItem;
+    private T mItem;
 
     @SuppressWarnings("unchecked")
     @Override
