@@ -86,7 +86,7 @@ public abstract class AnyPresenceAdapter<T extends Serializable> extends ArrayAd
         if(previousTask != null) {
             previousTask.cancel(true);
         }
-        BitmapTask newTask = new BitmapTask(iv, url);
+        BitmapTask newTask = new BitmapTask(getContext(), iv, url);
         newTask.executeAsync();
         mAsyncTasks.put(convertView, newTask);
     }

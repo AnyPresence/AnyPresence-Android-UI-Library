@@ -26,12 +26,14 @@ import android.widget.ImageView;
 public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
     private static final LruCache<String, Bitmap> LOADED_BITMAPS = new LruCache<String, Bitmap>(4 * 1024 * 1024);
 
+    private final Context mContext;
     private final ImageView mImageView;
     private final String mURL;
 
-    public BitmapTask(ImageView imageView, String url) {
+    public BitmapTask(Context context, ImageView imageView, String url) {
+        this.mContext = context.getApplicationContext();
         this.mImageView = imageView;
-        mURL = url;
+        this.mURL = url;
     }
 
     @Override
@@ -53,7 +55,7 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
                 bis.close();
                 is.close();
 
-                cacheBitmap(mImageView.getContext(), bitmap, url);
+                cacheBitmap(mContext, bitmap, url);
             }
             catch(IOException e) {
                 Log.e(AnyPresenceActivity.TAG, "Error getting bitmap from url " + url, e);
@@ -82,7 +84,7 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
         if(url != null && !"".equals(url)) {
 
             Log.d(AnyPresenceActivity.TAG, "Saving bitmap to memory.");
-            if(bitmap != null) LOADED_BITMAPS.put(url, bitmap);
+            if(bitmap != null) persist(bitmap);
 
             File cache = getCacheFile(context, url);
             Log.d(AnyPresenceActivity.TAG, "Got cache file at " + cache);
@@ -114,7 +116,9 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
     /**
      * Load bitmap from cache dir
      * */
-    private Bitmap loadCache(Context context, String url) {
+    protected Bitmap loadCache() {
+        Context context = mContext;
+        String url = mURL;
         if(url != null && !"".equals(url)) {
             File cache = getCacheFile(context, url);
 
@@ -130,6 +134,10 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
             }
         }
         return null;
+    }
+
+    protected void persist(Bitmap bitmap) {
+        LOADED_BITMAPS.put(mURL, bitmap);
     }
 
     private Bitmap loadMemCache(String url) {
@@ -166,12 +174,12 @@ public class BitmapTask extends AsyncTask<Void, Void, Bitmap> {
     protected void onPreExecute() {
         super.onPreExecute();
 
-        Bitmap bitmap = loadCache(mImageView.getContext(), mURL);
+        Bitmap bitmap = loadCache();
         if(bitmap != null) {
             mImageView.setImageBitmap(bitmap);
 
             Log.d(AnyPresenceActivity.TAG, "Saving bitmap to memory.");
-            LOADED_BITMAPS.put(mURL, bitmap);
+            persist(bitmap);
         }
     }
 
