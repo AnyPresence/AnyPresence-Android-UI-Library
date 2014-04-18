@@ -12,11 +12,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.ListFragment;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -111,16 +109,15 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
             public void success(List<T> object) {
                 if(!activeQuery.equals(mQuery)) return;
 
-                mUnfilteredData = object;
+                mUnfilteredData = new ArrayList<T>(object);
+                if(mComparator != null) Collections.sort(mUnfilteredData, mComparator);
                 if(mFilter == null) {
-                    mAdapter.updateAdapter(object);
+                    mAdapter.updateAdapter(mUnfilteredData);
                 }
                 else {
-                    List<T> filtered = applyFilter(mUnfilteredData);
-                    mAdapter.updateAdapter(filtered);
+                    mAdapter.updateAdapter(applyFilter(mUnfilteredData));
                 }
                 setListShown(true);
-                if(mComparator != null) Collections.sort(mAdapter.getList(), mComparator);
 
                 // Add a "no data" message. Will crash if listview isn't set up
                 // yet.
@@ -189,7 +186,14 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
      * Set the query scope. Immediately loads items.
      * */
     public void setQueryScope(String queryScope, Map<String, String> params, Integer limit, Integer offset) {
-        mQuery = new Query(queryScope, params, limit, offset);
+        setQueryScope(new Query(queryScope, params, limit, offset));
+    }
+
+    /**
+     * Set the query scope. Immediately loads items.
+     * */
+    public void setQueryScope(Query query) {
+        mQuery = query;
         if(mAdapter != null) mAdapter.updateAdapter(new ArrayList<T>());
         try {
             getListView().setEmptyView(null);
@@ -213,7 +217,8 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
                 Object list;
                 if(mQuery.getLimit() != null || mQuery.getOffset() != null) {
                     // Query cache w/ limit and offset
-                    Method cacheMethod = getClazz().getMethod("fetchInCacheWithLatestAPCachedRequestPredicate", String.class, Map.class, Integer.class, Integer.class);
+                    Method cacheMethod = getClazz().getMethod("fetchInCacheWithLatestAPCachedRequestPredicate", String.class, Map.class, Integer.class,
+                            Integer.class);
                     list = cacheMethod.invoke(null, mQuery.getScope(), mQuery.getParams(), mQuery.getOffset(), mQuery.getLimit());
                 }
                 else {
@@ -324,7 +329,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
     public void setFilter(Filter<T> filter) {
         mFilter = filter;
         if(mAdapter != null) {
-            if (mFilter != null) mAdapter.updateAdapter(applyFilter(mUnfilteredData));
+            if(mFilter != null) mAdapter.updateAdapter(applyFilter(mUnfilteredData));
             else mAdapter.updateAdapter(mUnfilteredData);
         }
     }
@@ -396,7 +401,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
         public void onItemSelected(T item);
     }
 
-    private static class Query {
+    public static class Query {
         private final String mScope;
         private final Map<String, String> mParams;
         private final Integer mLimit;
@@ -431,8 +436,12 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
             return mParams;
         }
 
-        public Integer getLimit() { return mLimit; }
+        public Integer getLimit() {
+            return mLimit;
+        }
 
-        public Integer getOffset() { return mOffset; }
+        public Integer getOffset() {
+            return mOffset;
+        }
     }
 }
