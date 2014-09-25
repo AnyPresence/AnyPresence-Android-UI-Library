@@ -12,3 +12,15 @@ Getting Started:
 Sample:
 
 Included is a sample that goes over several of the basic Activities and Fragments included. It's commented with the assumption that you've never coded for Android before but that you're familiar with or can read Java.
+
+The sample requires an SDK with the following object:
+
+Room
+-id [String]
+-group_id [String]
+-name [String]
+-desc [String]
+-password [String]
+-date [Date]
+
+When you toss your SDK into /libs, make sure to modify MainActivity.onCreate() with your server's web address. By default, it's hardcoded to look at calm-garden-7313.

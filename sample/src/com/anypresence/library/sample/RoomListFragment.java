@@ -81,7 +81,7 @@ public class RoomListFragment extends AnyPresenceListFragment<Room> {
                 iv.setVisibility(View.VISIBLE);
             }
 
-            // If you want to use an image from a url instead, call grabImage().
+            // If you want to use an image from a url instead, call loadImage().
             // It'll handle caching, loading the image, and halting the
             // connection if the user scrolls away.
         }
