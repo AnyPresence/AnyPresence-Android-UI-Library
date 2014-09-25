@@ -5,15 +5,7 @@ A UI library with ListViews, Spinners, and Activities that tie into AnyPresence 
 
 Getting Started:
 
-1) Add this as a library to your project.
-
-In Eclipse, import the code.
-Right click the project, Properties, Android, and make sure "Is Library" is checked
-The library relies on the Android Support Library (appcompat), which can be downloaded in the SDK Manager. 
-More information: http://developer.android.com/tools/support-library/features.html
-It too has to be imported and set as a library. When it's installed and set up
-Right click the project, Properties, Android, and add it as a Reference
-Finally, right click your project, Properties, Android, and add this library as a Reference
+1) Add this as a library to your project. This library depends on the Android Support Library (appcompat) which you can download with the SDK Manager.
 
 2) Download the no-dependencies jar from the designer. Add it to /libs for your project.
 
