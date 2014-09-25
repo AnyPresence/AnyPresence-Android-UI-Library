@@ -10,5 +10,8 @@
     <string name="ap_msg_loading">Loading…</string>
     <string name="ap_loading_failed">Couldn\'t reach server</string>
     <string name="ap_no_data">No Data</string>
+    <string name="ap_authorized">Authorized</string>
+    <string name="ap_unauthorized">Unauthorized</string>
 
+    <item name="ap_pager" type="id" />
 </resources>

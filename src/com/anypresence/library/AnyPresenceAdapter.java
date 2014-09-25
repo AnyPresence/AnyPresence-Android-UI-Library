@@ -80,15 +80,32 @@ public abstract class AnyPresenceAdapter<T extends Serializable> extends ArrayAd
      * because there is some handling in the background for canceling the call
      * if the user is scrolling away.
      * */
-    protected void grabImage(View convertView, ImageView iv, String url) {
+    @Deprecated
+     protected void grabImage(View convertView, ImageView iv, String url) {
         // Kill the previous async tasks
         BitmapTask previousTask = mAsyncTasks.get(convertView);
         if(previousTask != null) {
             previousTask.cancel(true);
         }
-        BitmapTask newTask = new BitmapTask(getContext(), iv, url);
+        BitmapTask newTask = new BitmapTask(iv, url);
         newTask.executeAsync();
         mAsyncTasks.put(convertView, newTask);
+    }
+
+    /**
+     * A helper method for loading images from a URL. Pass the convertView
+     * because there is some handling in the background for canceling the call
+     * if the user is scrolling away.
+     * */
+    protected void loadImage(ImageView iv, String url) {
+        // Kill the previous async tasks
+        BitmapTask previousTask = mAsyncTasks.get(iv);
+        if(previousTask != null) {
+            previousTask.cancel(true);
+        }
+        BitmapTask newTask = new BitmapTask(iv, url);
+        newTask.executeAsync();
+        mAsyncTasks.put(iv, newTask);
     }
 
     /**

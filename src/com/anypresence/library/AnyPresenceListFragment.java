@@ -2,9 +2,11 @@ package com.anypresence.library;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,15 +22,16 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.anypresence.rails_droid.IAPFutureCallback;
 import com.anypresence.rails_droid.RemoteObject;
+import com.anypresence.sdk.acl.IAuthenticatable;
 
 /**
  * A class that abstracts away loading data into a list fragment.
  * */
 public abstract class AnyPresenceListFragment<T extends RemoteObject> extends ListFragment {
+    private List<T> mDebugItems;
     private Context mContext;
     private AnyPresenceAdapter<T> mAdapter;
     private Comparator<T> mComparator;
@@ -39,7 +42,10 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
     private OnLoadListener<T> mOnLoadListener;
     private OnItemSelectedListener<T> mOnItemSelectedListener;
     private Query mQuery = new Query("all");
-    private TextView mNoResultsText;
+    private View mNoResultsText;
+    private View mUnauthorizedText;
+    private View mServerUnreachableText;
+    private List<String> mRoles;
 
     public AnyPresenceListFragment() {
         super();
@@ -55,6 +61,22 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
         super.onAttach(activity);
 
         mContext = activity;
+    }
+
+    @SuppressWarnings("unchecked")
+	@Override
+    public void onStart() {
+        super.onStart();
+
+        // Load query
+        final Bundle args = getArguments();
+        if(args != null) {
+            String scope = args.getString("scope");
+            HashMap<String, String> params = (HashMap<String, String>) args.getSerializable("params");
+            Integer limit = args.getInt("limit", -1) == -1 ? null : args.getInt("limit");
+            Integer offset = args.getInt("offset", -1) == -1 ? null : args.getInt("offset");
+            setQueryScope(scope, params, limit, offset);
+        }
     }
 
     /**
@@ -92,12 +114,95 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
 
     /**
      * Grab data from the server. Will also grab from cache.
+     * 
+     * Displays an unauthorized message when needed
      * */
     public void notifyDataChanged() {
         if(!mIsActivityCreated) return;
-        IAPFutureCallback<List<T>> callback = createCallback();
-        loadCache(callback);
-        loadServer(callback);
+        if(isAuthorized()) {
+            // User is authorized to see page
+            IAPFutureCallback<List<T>> callback = createCallback();
+            if(Debug.isEnabled() && mDebugItems != null) {
+            	callback.onSuccess(mDebugItems);
+            }
+            else {
+                loadCache(callback);
+                loadServer(callback);
+            }
+        }
+        else {
+            // User is not authorized to see page
+            enableAuthorizedView();
+        }
+    }
+    
+    private void disableViews() {
+        if(mNoResultsText != null) {
+            if(mNoResultsText.getParent() != null) {
+                ViewGroup parent = (ViewGroup) mNoResultsText.getParent();
+                parent.removeView(mNoResultsText);
+            }
+        }
+        if(mUnauthorizedText != null) {
+            if(mUnauthorizedText.getParent() != null) {
+                ViewGroup parent = (ViewGroup) mUnauthorizedText.getParent();
+                parent.removeView(mUnauthorizedText);
+            }
+        }
+        if(mServerUnreachableText != null) {
+            if(mServerUnreachableText.getParent() != null) {
+                ViewGroup parent = (ViewGroup) mServerUnreachableText.getParent();
+                parent.removeView(mServerUnreachableText);
+            }
+        }
+    }
+    
+    private void enableAuthorizedView() {
+        try {
+            disableViews();
+            if(mUnauthorizedText == null) {
+                mUnauthorizedText = createUnauthorizedView();
+            }
+            if(mUnauthorizedText.getParent() != null) {
+                ViewGroup parent = (ViewGroup) mUnauthorizedText.getParent();
+                parent.removeView(mUnauthorizedText);
+            }
+            ((ViewGroup) getListView().getParent()).addView(mUnauthorizedText);
+            getListView().setEmptyView(mUnauthorizedText);
+        }
+        catch(IllegalStateException e) {}
+    }
+    
+    private void enableEmptyView() {
+        try {
+            disableViews();
+            if(mNoResultsText == null) {
+                mNoResultsText = createNoResultsView();
+            }
+            if(mNoResultsText.getParent() != null) {
+                ViewGroup parent = (ViewGroup) mNoResultsText.getParent();
+                parent.removeView(mNoResultsText);
+            }
+            ((ViewGroup) getListView().getParent()).addView(mNoResultsText);
+            getListView().setEmptyView(mNoResultsText);
+        }
+        catch(IllegalStateException e) {}
+    }
+    
+    private void enableServerUnreachableView() {
+        try {
+            disableViews();
+            if(mServerUnreachableText == null) {
+                mServerUnreachableText = createServerUnreachableView();
+            }
+            if(mServerUnreachableText.getParent() != null) {
+                ViewGroup parent = (ViewGroup) mServerUnreachableText.getParent();
+                parent.removeView(mServerUnreachableText);
+            }
+            ((ViewGroup) getListView().getParent()).addView(mServerUnreachableText);
+            getListView().setEmptyView(mServerUnreachableText);
+        }
+        catch(IllegalStateException e) {}
     }
 
     private IAPFutureCallback<List<T>> createCallback() {
@@ -119,22 +224,8 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
                 }
                 setListShown(true);
 
-                // Add a "no data" message. Will crash if listview isn't set up
-                // yet.
-                try {
-                    if(getListView().getEmptyView() == null) {
-                        if(mNoResultsText == null) {
-                            mNoResultsText = createNoResultsTextView();
-                        }
-                        if(mNoResultsText.getParent() != null) {
-                            ViewGroup parent = (ViewGroup) mNoResultsText.getParent();
-                            parent.removeView(mNoResultsText);
-                        }
-                        ((ViewGroup) getListView().getParent()).addView(mNoResultsText);
-                        getListView().setEmptyView(mNoResultsText);
-                    }
-                }
-                catch(IllegalStateException e) {}
+                // Add a "no data" message
+                enableEmptyView();
 
                 if(mOnLoadListener != null) mOnLoadListener.onLoad(getList());
             }
@@ -147,7 +238,7 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
 
                 if(!mDoesCacheExist) {
                     setListShown(true);
-                    Toast.makeText(getContext(), R.string.ap_loading_failed, Toast.LENGTH_SHORT).show();
+                    enableServerUnreachableView();
                 }
             }
         };
@@ -289,9 +380,44 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
         }
     }
 
-    protected TextView createNoResultsTextView() {
+    /**
+     * Create a view to be displayed when no data is found.
+     * 
+     * Override this method to provide a custom view
+     * */
+    protected View createNoResultsView() {
         TextView emptyView = new TextView(getContext());
         emptyView.setText(R.string.ap_no_data);
+        emptyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        emptyView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        emptyView.setGravity(Gravity.CENTER);
+        return emptyView;
+    }
+
+    /**
+     * Create a view to be displayed when not authorized.
+     * 
+     * Override this method to provide a custom view
+     * */
+
+    protected View createUnauthorizedView() {
+        TextView emptyView = new TextView(getContext());
+        emptyView.setText(R.string.ap_unauthorized);
+        emptyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        emptyView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        emptyView.setGravity(Gravity.CENTER);
+        return emptyView;
+    }
+
+    /**
+     * Create a view to be displayed when server isn't reachable.
+     * 
+     * Override this method to provide a custom view
+     * */
+
+    protected View createServerUnreachableView() {
+        TextView emptyView = new TextView(getContext());
+        emptyView.setText(R.string.ap_loading_failed);
         emptyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
         emptyView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         emptyView.setGravity(Gravity.CENTER);
@@ -336,12 +462,51 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
 
     private List<T> applyFilter(List<T> items) {
         List<T> filtered = new ArrayList<T>();
-        for(T t : items) {
-            if(mFilter.inFilter(t)) {
-                filtered.add(t);
+        if(items != null) {
+            for (T t : items) {
+                if (mFilter.inFilter(t)) {
+                    filtered.add(t);
+                }
             }
         }
         return filtered;
+    }
+    
+    /**
+     * Set roles that require the user to be authenticated
+     * */
+    public void setRoles(List<String> roles) {
+        mRoles = roles;
+        notifyDataChanged();
+    }
+    
+    /**
+     * Get roles that require the user to be authenticated
+     * */
+    public List<String> getRoles() {
+        return mRoles;
+    }
+
+    private boolean isAuthorized() {
+        if(mRoles == null || mRoles.size() == 0) return true;
+        IAuthenticatable user = Auth.getCurrentUser();
+        if(user == null) return false;
+        for(String role : mRoles) {
+            if(user.getRoles().containsKey(role)){
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Set hard-coded items to show in the list.
+     * Debug.enableDebug() must be called for the items to show up.
+     * If debug items are null, the ListFragment will work normally.
+     * */
+    protected void setDebugItems(List<T> items) {
+    	mDebugItems = items;
+    	notifyDataChanged();
     }
 
     /**
@@ -381,7 +546,11 @@ public abstract class AnyPresenceListFragment<T extends RemoteObject> extends Li
      * Return a copy of the objects class. Used internally for loading from
      * query scopes.
      * */
-    protected abstract Class<T> getClazz();
+    @SuppressWarnings("unchecked")
+	protected Class<T> getClazz() {
+        return ((Class<T>)((ParameterizedType) getClass().
+				       getGenericSuperclass()).getActualTypeArguments()[0]);
+    }
 
     public static interface Filter<T extends RemoteObject> {
         public boolean inFilter(T item);

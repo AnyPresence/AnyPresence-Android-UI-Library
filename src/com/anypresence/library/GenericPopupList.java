@@ -7,6 +7,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import android.content.Context;
+import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.v7.widget.PopupMenu;
@@ -68,7 +69,7 @@ public abstract class GenericPopupList<T extends Serializable> extends TextView 
                         return true;
                     }
                 });
-                if(menu != null) {
+                if (menu != null) {
                     menu.show();
                 }
             }
@@ -87,6 +88,10 @@ public abstract class GenericPopupList<T extends Serializable> extends TextView 
         return popupMenu;
     }
 
+    public void setPrompt(int res) {
+        setPrompt(getContext().getString(res));
+    }
+
     public void setPrompt(String prompt) {
         mPrompt = prompt;
         if(mItem == null) setText(mPrompt);
@@ -98,23 +103,26 @@ public abstract class GenericPopupList<T extends Serializable> extends TextView 
 
     @Override
     public Parcelable onSaveInstanceState() {
-        Parcelable superState = super.onSaveInstanceState();
-        SavedState<T> s = new SavedState<T>(superState);
-        s.mItem = mItem;
-        return s;
+        Bundle bundle = new Bundle();
+        bundle.putParcelable("instanceState", super.onSaveInstanceState());
+        bundle.putSerializable("item", mItem);
+        bundle.putSerializable("prompt", mPrompt);
+        return bundle;
     }
 
     @Override
     public void onRestoreInstanceState(Parcelable state) {
-        if(!(state instanceof SavedState)) {
+        if(!(state instanceof Bundle)) {
             super.onRestoreInstanceState(state);
-            return;
         }
-
-        @SuppressWarnings("unchecked")
-        SavedState<T> s = (SavedState<T>) state;
-        super.onRestoreInstanceState(s.getSuperState());
-        setItem(s.mItem);
+        else {
+            Bundle bundle = (Bundle) state;
+            super.onRestoreInstanceState(bundle.getParcelable("instanceState"));
+            mItem = (T) bundle.getSerializable("number");
+            mPrompt = bundle.getString("prompt");
+            setPrompt(mPrompt);
+            setItem(mItem);
+        }
     }
 
     /**
@@ -205,29 +213,6 @@ public abstract class GenericPopupList<T extends Serializable> extends TextView 
      * */
     public void setOnChangeListener(OnChangeListener<T> onChangeListener) {
         this.mOnChangeListener = onChangeListener;
-    }
-
-    /**
-     * A class for persisting state.
-     * */
-    private static class SavedState<T extends Serializable> extends BaseSavedState {
-        private T mItem;
-
-        SavedState(Parcelable superState) {
-            super(superState);
-        }
-
-        @SuppressWarnings("unchecked")
-        private SavedState(Parcel in) {
-            super(in);
-            mItem = (T) in.readSerializable();
-        }
-
-        @Override
-        public void writeToParcel(Parcel out, int flags) {
-            super.writeToParcel(out, flags);
-            if(mItem != null) out.writeSerializable(mItem);
-        }
     }
 
     /**

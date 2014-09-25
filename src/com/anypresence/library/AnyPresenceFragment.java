@@ -13,6 +13,8 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 
+import java.lang.reflect.Field;
+
 public abstract class AnyPresenceFragment extends Fragment {
     static final int INTERNAL_PROGRESS_CONTAINER_ID = 0x00ff0002;
     static final int INTERNAL_VIEW_CONTAINER_ID = 0x00ff0003;
@@ -20,20 +22,10 @@ public abstract class AnyPresenceFragment extends Fragment {
     final private Handler mHandler = new Handler();
 
     final private Runnable mRequestFocus = new Runnable() {
-        @Override
         public void run() {
             ((ViewGroup) mViewContainer).focusableViewAvailable(mView);
         }
     };
-
-    public AnyPresenceFragment() {
-        super();
-        try {
-            // Fragments inside fragments can't do this
-            setRetainInstance(true);
-        }
-        catch(IllegalStateException e) {}
-    }
 
     private View mView;
     private View mProgressContainer;
@@ -50,6 +42,7 @@ public abstract class AnyPresenceFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    	super.onCreateView(inflater, container, savedInstanceState);
         final Context context = getActivity();
 
         FrameLayout root = new FrameLayout(context);
@@ -62,10 +55,13 @@ public abstract class AnyPresenceFragment extends Fragment {
         pframe.setVisibility(View.GONE);
         pframe.setGravity(Gravity.CENTER);
 
-        ProgressBar progress = new ProgressBar(context, null, android.R.attr.progressBarStyleLarge);
-        pframe.addView(progress, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        ProgressBar progress = new ProgressBar(context, null,
+                android.R.attr.progressBarStyleLarge);
+        pframe.addView(progress, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        root.addView(pframe, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT));
+        root.addView(pframe, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // ------------------------------------------------------------------
 
@@ -74,13 +70,16 @@ public abstract class AnyPresenceFragment extends Fragment {
 
         View cv = inflateView(savedInstanceState);
         cv.setId(android.R.id.content);
-        lframe.addView(cv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT));
+        lframe.addView(cv, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        root.addView(lframe, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT));
+        root.addView(lframe, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // ------------------------------------------------------------------
 
-        root.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT));
+        root.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         return root;
     }
@@ -109,13 +108,12 @@ public abstract class AnyPresenceFragment extends Fragment {
     protected abstract View inflateView(Bundle savedInstanceState);
 
     /**
-     * Control whether the view is being displayed. You can make it not
-     * displayed if you are waiting for the initial data to show in it. During
+     * Control whether the view is being displayed.  You can make it not
+     * displayed if you are waiting for the initial data to show in it.  During
      * this time an indeterminant progress indicator will be shown instead.
-     * 
-     * @param shown
-     *            If true, the view is shown; if false, the progress indicator.
-     *            The initial value is true.
+     *
+     * @param shown If true, the view is shown; if false, the progress
+     * indicator.  The initial value is true.
      */
     public void setViewShown(boolean shown) {
         setViewShown(shown, true);
@@ -130,44 +128,43 @@ public abstract class AnyPresenceFragment extends Fragment {
     }
 
     /**
-     * Control whether the view is being displayed. You can make it not
-     * displayed if you are waiting for the initial data to show in it. During
+     * Control whether the view is being displayed.  You can make it not
+     * displayed if you are waiting for the initial data to show in it.  During
      * this time an indeterminant progress indicator will be shown instead.
-     * 
-     * @param shown
-     *            If true, the view is shown; if false, the progress indicator.
-     *            The initial value is true.
-     * @param animate
-     *            If true, an animation will be used to transition to the new
-     *            state.
+     *
+     * @param shown If true, the view is shown; if false, the progress
+     * indicator.  The initial value is true.
+     * @param animate If true, an animation will be used to transition to the
+     * new state.
      */
     private void setViewShown(boolean shown, boolean animate) {
         ensureView();
-        if(mProgressContainer == null) {
+        if (mProgressContainer == null) {
             throw new IllegalStateException("Can't be used with a custom content view");
         }
-        if(mViewShown == shown) {
+        if (mViewShown == shown) {
             return;
         }
         mViewShown = shown;
-        if(shown) {
-            if(animate) {
-                mProgressContainer.startAnimation(AnimationUtils.loadAnimation(getActivity(), android.R.anim.fade_out));
-                mViewContainer.startAnimation(AnimationUtils.loadAnimation(getActivity(), android.R.anim.fade_in));
-            }
-            else {
+        if (shown) {
+            if (animate) {
+                mProgressContainer.startAnimation(AnimationUtils.loadAnimation(
+                        getActivity(), android.R.anim.fade_out));
+                mViewContainer.startAnimation(AnimationUtils.loadAnimation(
+                        getActivity(), android.R.anim.fade_in));
+            } else {
                 mProgressContainer.clearAnimation();
                 mViewContainer.clearAnimation();
             }
             mProgressContainer.setVisibility(View.GONE);
             mViewContainer.setVisibility(View.VISIBLE);
-        }
-        else {
-            if(animate) {
-                mProgressContainer.startAnimation(AnimationUtils.loadAnimation(getActivity(), android.R.anim.fade_in));
-                mViewContainer.startAnimation(AnimationUtils.loadAnimation(getActivity(), android.R.anim.fade_out));
-            }
-            else {
+        } else {
+            if (animate) {
+                mProgressContainer.startAnimation(AnimationUtils.loadAnimation(
+                        getActivity(), android.R.anim.fade_in));
+                mViewContainer.startAnimation(AnimationUtils.loadAnimation(
+                        getActivity(), android.R.anim.fade_out));
+            } else {
                 mProgressContainer.clearAnimation();
                 mViewContainer.clearAnimation();
             }
@@ -176,25 +173,52 @@ public abstract class AnyPresenceFragment extends Fragment {
         }
     }
 
-    private void ensureView() {
-        if(mView != null) {
+    private void ensureView(){
+        if (mView != null) {
             return;
         }
         View root = getView();
-        if(root == null) {
+        if (root == null) {
             throw new IllegalStateException("Content view not yet created");
         }
 
         mProgressContainer = root.findViewById(INTERNAL_PROGRESS_CONTAINER_ID);
         mViewContainer = root.findViewById(INTERNAL_VIEW_CONTAINER_ID);
         View rawView = root.findViewById(android.R.id.content);
-        if(rawView == null) {
-            throw new RuntimeException("Your content must have a View whose id attribute is " + "'android.R.id.content'");
+        if (rawView == null) {
+            throw new RuntimeException(
+                    "Your content must have a View whose id attribute is " +
+                            "'android.R.id.content'");
         }
         mView = rawView;
 
         mViewShown = true;
 
         mHandler.post(mRequestFocus);
+    }
+
+    @Override
+    public void setRetainInstance(boolean retain) {
+	    try {
+	        // Fragments inside fragments can't do this
+	        super.setRetainInstance(retain);
+	    }
+	    catch(IllegalStateException e) {}
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+
+        // A bug fix for child fragment manager, since it doesn't get reset properly.
+        try {
+            Field childFragmentManager = Fragment.class.getDeclaredField("mChildFragmentManager");
+            childFragmentManager.setAccessible(true);
+            childFragmentManager.set(this, null);
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

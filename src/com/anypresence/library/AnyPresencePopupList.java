@@ -2,6 +2,7 @@ package com.anypresence.library;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.util.List;
 import java.util.Map;
 
@@ -178,7 +179,11 @@ public abstract class AnyPresencePopupList<T extends RemoteObject> extends Gener
      * Return a copy of the objects class. Used internally for loading from
      * query scopes.
      * */
-    protected abstract Class<T> getClazz();
+    @SuppressWarnings("unchecked")
+    protected Class<T> getClazz() {
+        return ((Class<T>)((ParameterizedType) getClass().
+                getGenericSuperclass()).getActualTypeArguments()[0]);
+    }
 
     /**
      * Get the active OnLoadListener

@@ -1,6 +1,7 @@
 package com.anypresence.library;
 
 import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
 
 import android.os.Bundle;
 
@@ -19,8 +20,18 @@ public abstract class AnyPresenceItemActivity<T extends Serializable> extends An
         if(savedInstanceState != null && savedInstanceState.containsKey(EXTRA_ITEM)) {
             mItem = (T) savedInstanceState.get(EXTRA_ITEM);
         }
-        else {
+        else if(getIntent().hasExtra(EXTRA_ITEM)) {
             mItem = (T) getIntent().getSerializableExtra(EXTRA_ITEM);
+        }
+    	else {
+            try {
+                mItem = ((Class<T>)((ParameterizedType) getClass().
+                           getGenericSuperclass()).getActualTypeArguments()[0]).newInstance();
+            } catch (java.lang.InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
         }
     }
 
